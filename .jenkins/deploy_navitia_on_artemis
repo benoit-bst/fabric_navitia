@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+    stages {
+        stage('Install requirement to retreive Github artifacts') {
+            steps {
+                sh '''
+                    pip install -r scripts/requirements.txt
+                '''
+            }
+        }
+        stage('Remove old artifacts') {
+            steps {
+                sh '''
+                    python2.7 scripts/retreive_debian_packages_from_github.py -r artifacts.zip
+                '''
+            }
+        }
+        stage('Retreive Artifacts from Github') {
+            steps { 
+                withCredentials([string(credentialsId: 'jenkins-core-github-access-token', variable: 'GITHUB_TOKEN')]) {
+                    sh '''
+                        python2.7 scripts/retreive_debian_packages_from_github.py -u jenkins-kisio-core -t $GITHUB_TOKEN -w "Build Navitia Packages For Dev" -a artifacts.zip -o "."
+                    '''
+                }
+            }
+        }      
+        stage('Unzip artifacts (artifacts.zip)') {
+            steps {
+                sh '''
+                    python2.7 scripts/retreive_debian_packages_from_github.py -z artifacts.zip
+                '''
+            }
+        }
+        stage('Retreive deployment configuration') {
+            steps {
+                sh 'rm -rf navitia_deployment_conf && mkdir -p navitia_deployment_conf' 
+                dir('navitia_deployment_conf') {
+                    git credentialsId: 'jenkins-core-ssh', url: 'git@github.com:CanalTP/navitia_deployment_conf.git'
+                }
+            }
+        }
+        stage('Install requirement for fabric deployment') {
+            steps {
+                sh '''
+                    pip install -r requirements.txt --exists-action w
+                '''
+            }
+        }
+        stage('Run deployment') {
+            steps {
+                sh '''
+                    PYTHONPATH=navitia_deployment_conf/ python -u -m fabric use:artemis upgrade_version
+                    PYTHONPATH=navitia_deployment_conf/ python -u -m fabric use:artemis update_all_configurations:restart=false
+                '''
+            }
+        }
+    }
+    post {
+        failure { 
+            withCredentials([string(credentialsId: 'navitia_core_team_slack_chan', variable: 'NAVITIA_CORE_TEAM_SLACK_CHAN')]) {
+                sh '''
+                    curl -X POST -H 'Content-type: application/json' --data '{"text":":warning: Deploy Navitia on Artemis is failed"}' NAVITIA_CORE_TEAM_SLACK_CHAN
+                '''
+            }
+        }
+    }
+}
