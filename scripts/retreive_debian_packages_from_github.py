@@ -47,9 +47,9 @@ import glob
 import argparse
 import zipfile
 
-DEFAULT_WORKFLOW_NAME = "Build Navitia Packages For Dev"
+DEFAULT_WORKFLOW_NAME = "Build Navitia Packages For Dev Multi Distributions"
 DEFAULT_OUTPUT_PATH = "."
-DEFAULT_ARTIFACTS_NAME = "artifacts.zip"
+DEFAULT_ARTIFACTS_NAME = "navitia-debian8-packages.zip"
 
 class GithubArtifactsReceiver:
     def __init__(self, github_user, github_token, workflow_name=DEFAULT_WORKFLOW_NAME, artifacts_name=DEFAULT_ARTIFACTS_NAME, artifacts_output_path=DEFAULT_OUTPUT_PATH):
@@ -103,13 +103,19 @@ class GithubArtifactsReceiver:
             self.logger.error("No artifacts available for run {}".format(run_id))
             self.logger.error("Artifacts: https://api.github.com/repos/CanalTP/navitia/actions/runs/{}/artifacts".format(run_id))
             sys.exit()
-        if resp["total_count"] > 1:
-            self.logger.error("There must be only one artifacts - run id {}".format(run_id))
+
+        # the artifact that match
+        zip_url = ""
+        for artifact in resp["artifacts"]:
+            if artifact["name"] == self.artifacts_name.split('.')[0]:
+                artifact_info = artifact
+                zip_url = self.url_header + artifact_info["archive_download_url"].replace('https://', '')
+                self.logger.info("artifacts name - {}".format(artifact["name"]))
+                break
+        if zip_url == "":
+            self.logger.error("no artifact available - run id {}".format(run_id))
             self.logger.error("Artifacts: https://api.github.com/repos/CanalTP/navitia/actions/runs/{}/artifacts".format(run_id))
             sys.exit()
-
-        artifact_info = resp["artifacts"][0]
-        zip_url = self.url_header + artifact_info["archive_download_url"].replace('https://', '')
 
         # Remove old artifacts with the same name if exist
         if os.path.isfile(self.old_artifacts_to_remove):
@@ -164,7 +170,8 @@ def uncompress_artifacts(path_to_artifacts):
     """ uncompress the downloaded artifacts """
     zip = zipfile.ZipFile(path_to_artifacts)
     zip.extractall()
-    zip = zipfile.ZipFile('navitia_debian_packages.zip')
+    zip.close()
+    zip = zipfile.ZipFile(path_to_artifacts.replace('-', '_'))
     zip.extractall()
     zip.close()
 
@@ -173,10 +180,10 @@ def remove_all_artifacts(path_to_artifacts):
     """ remove old artifacts """
     for f in glob.glob("navitia-*"):
         os.remove(f)
-    if os.path.isfile("navitia_debian_packages.zip"):
-        os.remove("navitia_debian_packages.zip")
     if os.path.isfile(path_to_artifacts):
         os.remove(path_to_artifacts)
+    if os.path.isfile(path_to_artifacts.replace('-', '_')):
+        os.remove(path_to_artifacts.replace('-', '_'))
 
 
 def config_logger():
@@ -220,10 +227,10 @@ def main():
 
     if args.remove_artifacts:
         logger.info("remove old artifacts")
-        remove_all_artifacts(DEFAULT_ARTIFACTS_NAME)
+        remove_all_artifacts(args.remove_artifacts)
     elif args.uncompress_artifacts:
         logger.info("uncompress the downloaded artifacts")
-        uncompress_artifacts(DEFAULT_ARTIFACTS_NAME)
+        uncompress_artifacts(args.uncompress_artifacts)
         logger.info("you can have now acces to navitia-*.deb packages")
     else:
         artifacts_receiver = GithubArtifactsReceiver(args.github_user, args.github_token, args.workflow_name, args.artifacts_name, args.output_dir)
