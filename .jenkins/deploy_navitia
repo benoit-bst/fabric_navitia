@@ -7,7 +7,8 @@ pipeline {
     }
     triggers {
         parameterizedCron('''
-            0 3 * * * %PLATFORM=dev_debian8
+            0 2 * * * %PLATFORM=dev_debian8
+            0 4 * * * %PLATFORM=artemis_debian8
         ''')
     }
     stages {
@@ -27,6 +28,8 @@ pipeline {
                         env.NAVITIA_DEBIAN_PACKAGES = "navitia-debian8-packages.zip"
                     } else if (env.PLATFORM == 'dev_debian10') {
                         env.NAVITIA_DEBIAN_PACKAGES = "navitia-debian10-packages.zip"
+                    } else if (env.PLATFORM == 'artemis_debian8') {
+                        env.NAVITIA_DEBIAN_PACKAGES = "navitia-debian8-packages.zip"
                     } else {
                         echo 'selected platform not available'
                         sh 'exit 1'
@@ -97,6 +100,12 @@ pipeline {
                             sh '''
                                 PYTHONPATH=navitia_deployment_conf/ python2 -u -m fabric use:dev upgrade_all:check_version=False
                             '''
+                        } else if (env.PLATFORM == 'artemis_debian8') {
+                            echo 'deploy on artemis - debian 8 platform'
+                            sh '''
+                                PYTHONPATH=navitia_deployment_conf/ python2 -u -m fabric use:artemis upgrade_version
+                                PYTHONPATH=navitia_deployment_conf/ python2 -u -m fabric use:artemis update_all_configurations:restart=false
+                            '''
                         } else if (env.PLATFORM == 'dev_debian10') {
                             echo 'deploy on dev - debian 10 platform'
                             echo 'Not implemented yet !!!!!'
@@ -123,7 +132,7 @@ pipeline {
         failure {
             withCredentials([string(credentialsId: 'navitia_core_team_slack_chan', variable: 'NAVITIA_CORE_TEAM_SLACK_CHAN')]) {
                 sh '''
-                    curl -X POST -H 'Content-type: application/json' --data '{"text":":warning: Deploy Navitia is failed. See https://jenkins-core.canaltp.fr/job/deploy-navitia/"}' $NAVITIA_CORE_TEAM_SLACK_CHAN
+                    curl -X POST -H 'Content-type: application/json' --data '{"text":":warning: Deploy Navitia failed. See https://jenkins-core.canaltp.fr/job/deploy-navitia/"}' $NAVITIA_CORE_TEAM_SLACK_CHAN
                 '''
             }
         }
