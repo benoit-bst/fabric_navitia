@@ -106,6 +106,9 @@ pipeline {
                                 PYTHONPATH=navitia_deployment_conf/ python2 -u -m fabric use:artemis upgrade_version
                                 PYTHONPATH=navitia_deployment_conf/ python2 -u -m fabric use:artemis update_all_configurations:restart=false
                             '''
+                            build job: 'artemis_old', parameters: [
+                                string(name: 'arg', value: 'value')
+                            ]
                         } else if (env.PLATFORM == 'dev_debian10') {
                             echo 'deploy on dev - debian 10 platform'
                             echo 'Not implemented yet !!!!!'
