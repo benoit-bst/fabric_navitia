@@ -102,6 +102,13 @@ pipeline {
                 rm -rf *.zip
             '''
         }
+        success {
+            withCredentials([string(credentialsId: 'navitia_core_team_slack_chan', variable: 'NAVITIA_CORE_TEAM_SLACK_CHAN')]) {
+                sh '''
+                    curl -X POST -H 'Content-type: application/json' --data '{"text":":octopus: Navitia Debian packages are available ! Good Job Team"}' $NAVITIA_CORE_TEAM_SLACK_CHAN
+                '''
+            }
+        }
         failure {
             withCredentials([string(credentialsId: 'navitia_core_team_slack_chan', variable: 'NAVITIA_CORE_TEAM_SLACK_CHAN')]) {
                 sh '''
