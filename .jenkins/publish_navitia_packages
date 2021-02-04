@@ -76,7 +76,7 @@ pipeline {
                             if (env.PACKAGES == 'navitia_debian8_packages') {
                                 echo 'copy debian 8 packages'
                                 sh '''
-                                    ssh username@domain.com 'rm -f /srv/www/debian/repositories/incoming/upload/test.file'
+                                    scp -o StrictHostKeyChecking=no navitia-* $DEBIAN8_REPO
                                 '''
                             } else if (env.PACKAGES == 'navitia_debian10_packages') {
                                 echo 'copy debian 10 pacakges'
